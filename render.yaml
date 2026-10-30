@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: huquq-quiz-bot
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: GROUP_CHAT_ID
+        sync: false
+      - key: QUIZ_GRADE
+        value: "0"
+      - key: QUIZ_GRADES
+        value: 8,9,10,11
+      - key: QUESTIONS_PER_QUIZ
+        value: "5"
+      - key: QUESTION_SECONDS
+        value: "25"
+      - key: ANNOUNCE_HOUR
+        value: "20"
+      - key: ANNOUNCE_MINUTE
+        value: "0"
+      - key: QUIZ_HOUR
+        value: "20"
+      - key: QUIZ_MINUTE
+        value: "5"
+      - key: RECENT_QUESTION_DAYS
+        value: "30"
+      - key: TIMEZONE
+        value: Asia/Tashkent
+      - key: DB_PATH
+        value: huquq_quiz.db
+      - key: QUESTIONS_FILE
+        value: questions.json
+      - key: LOG_FILE
+        value: logs/bot.log
