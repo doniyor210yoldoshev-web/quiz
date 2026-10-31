@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import html
 import logging
 import os
@@ -990,9 +991,59 @@ async def start_health_server() -> None:
     async def health(request: web.Request) -> web.Response:
         return web.Response(text="ok")
 
+    def control_token_ok(request: web.Request) -> bool:
+        expected = os.getenv("CONTROL_TOKEN", "").strip()
+        provided = request.query.get("token", "")
+        return bool(expected) and hmac.compare_digest(provided, expected)
+
+    async def start_quiz(request: web.Request) -> web.Response:
+        if not control_token_ok(request):
+            return web.Response(status=403, text="Forbidden")
+
+        chat_id = get_target_chat_id()
+        if chat_id is None:
+            return web.Response(
+                status=400,
+                text="Guruh sozlanmagan. Avval guruhda /setgroup yuboring.",
+            )
+
+        raw_grade = request.query.get("grade", "").strip()
+        if raw_grade:
+            try:
+                grade = int(raw_grade)
+            except ValueError:
+                return web.Response(status=400, text="grade butun son bo'lishi kerak.")
+            if not 1 <= grade <= 11:
+                return web.Response(status=400, text="grade 1 dan 11 gacha bo'lishi kerak.")
+        else:
+            grade = settings.grade_for_date(settings.today())
+
+        lock = quiz_locks.setdefault(chat_id, asyncio.Lock())
+        if lock.locked():
+            return web.Response(status=409, text="Bu chatda quiz allaqachon davom etmoqda.")
+
+        spawn(run_quiz(chat_id, grade, "manual"))
+        return web.Response(text=f"Quiz boshlandi: {grade}-sinf.")
+
+    async def cancel_quiz(request: web.Request) -> web.Response:
+        if not control_token_ok(request):
+            return web.Response(status=403, text="Forbidden")
+
+        chat_id = get_target_chat_id()
+        if chat_id is None:
+            return web.Response(
+                status=400,
+                text="Guruh sozlanmagan. Avval guruhda /setgroup yuboring.",
+            )
+        if request_cancel(chat_id):
+            return web.Response(text="Quiz bekor qilindi.")
+        return web.Response(status=404, text="Faol quiz yo'q.")
+
     app = web.Application()
     app.router.add_get("/", health)
     app.router.add_get("/health", health)
+    app.router.add_get("/start-quiz", start_quiz)
+    app.router.add_get("/cancel-quiz", cancel_quiz)
 
     health_runner = web.AppRunner(app)
     await health_runner.setup()

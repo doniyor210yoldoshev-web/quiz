@@ -43,3 +43,5 @@ services:
         value: questions.json
       - key: LOG_FILE
         value: logs/bot.log
+      - key: CONTROL_TOKEN
+        sync: false
